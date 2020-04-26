@@ -1,0 +1,100 @@
+<!-- Use this CSS stylesheet to ensure that add-ons styling
+     matches the default Google Docs styles -->
+<link href="https://ssl.gstatic.com/docs/script/css/add-ons.css"
+     rel="stylesheet">
+
+<!-- The sidebar will have a input box and the search button -->
+<div class="sidebar">
+
+    <div class="block form-group">
+        <button class="blue" id="show_fields">Show fields</button>
+    </div>
+    
+    <div id='fields'></div>
+    <button id="fill_document" style="visibility: hidden;">Fill document</button>
+    <div id='new_values'></div>
+</div>
+
+<!-- Load the jQuery library from the Google CDN -->
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js">
+</script>
+
+<script>
+ // Attach click handlers after the Sidebar has loaded in Google Docs
+ $(function() {
+   $('#show_fields').click(function() {
+     google.script.run
+       .withSuccessHandler(function(fields, element) {
+         console.log(fields);
+         $("#fields").empty();
+         // for each field that needs to be edited
+         for (var i = 0; i < fields.length; i++) {
+           var txt = $("<label></label>").text("" + fields[i].field).attr("for", "input-"+i);
+           $('#fields').append(txt);
+           $('#fields').append("<br>");
+           
+           if(fields[i].options.length) { // dropdown if field has options
+             $("<select></select>")
+               .attr("id", "input-"+i)
+               .appendTo("#fields");
+             for (var j = 0; j < fields[i].options.length; j++) { // for each option a field has
+               $("<option>"+ fields[i].options[j] +"</option>")
+                 .attr("value", ""+fields[i].options[j])
+                 .appendTo("#input-"+i);
+             }
+           }
+           else { // text input if field has no options
+             $("<input type='text' value='' />")
+               .attr("id", "input-"+i)
+               .attr("name", "myfieldid")
+               .appendTo("#fields");
+           }
+           $('#fields').append("<br><br>");
+         }
+         $("#fill_document").css('visibility', 'visible');
+        })
+        .withFailureHandler(function(msg, element) {
+          console.log('ERR', msg);
+        })
+        .getFields();
+   });
+   
+   $('#fill_document').click(function() { // replace tags in document with values in form
+     var toFill = [];
+     $("#fields").each(function(){
+       $(this).find(':input').each(function(index, element){
+         
+         var inputType = this.tagName == "input" ? this.type.toLowerCase() : this.tagName.toLowerCase();
+         var value = $(element).val();
+         
+         var options = [];
+         $("#input-"+index+" option").each(function(){
+           options.push($(this).val());
+         });
+         
+         var $label = $("label[for='"+$(element).attr('id')+"']")
+         if ($label.length == 0) {
+           $label = $(element).closest('label')
+         }
+         if ($label.length == 0) {
+           // label wasn't found
+         } 
+         else {
+           toFill.push({tag: $label.text(), inputType: inputType, value: value, options: options});
+         }
+         
+         //$("#new_values").append($label.text() + " " + (this.tagName == "input" ? this.type.toLowerCase() : this.tagName.toLowerCase()) + " " + $(element).val() + " options:" + options + "<br>");
+       });
+     });
+     
+     google.script.run
+       .withSuccessHandler(function(){
+         console.log('SUCCESS');
+        })
+        .withFailureHandler(function(msg, element){
+          console.log('ERR', msg)
+        })
+        .fill(toFill);
+   });
+ });
+</script>
